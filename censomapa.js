@@ -1,3 +1,31 @@
+app = {
+    map: null,
+
+    init: function () {
+        this.map = L.map('map_container')
+            .setView(new L.LatLng(-38, -56), 4)
+            .addLayer(this.createOSM());
+        this.loadProvincias();
+    },
+
+    createOSM: function () {
+        return new L.tileLayer('http://{s}tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+            maxZoom: 12,
+            subdomains: ['a.', 'b.', 'c.', '']
+        });
+    },
+
+    loadProvincias: function () {
+        _this = this;
+        $.getJSON('provincias.json', function(geoJsonData){
+            L.geoJson(geoJsonData).addTo(_this.map);
+        })
+    }
+};
+
+app.init();
+
 var featureExtents = function (feature) {
     var b = feature.data.properties.bounds;
     return [{lon: b[0], lat: b[1]}, {lon: b[2], lat: b[3]}];
@@ -17,20 +45,6 @@ var loadDepartamentos = function (e) {
         feature.element.setAttribute('class', 'dpto');
     }
 };
-
-var map = L.map('map_container').setView([51.505, -0.09], 13);
-
-var osm = new L.tileLayer('http://{s}tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
-    maxZoom: 12,
-    subdomains: ['a.', 'b.', 'c.', '']
-});
-
-map
-    .setView(new L.LatLng(-38, -56), 4)
-    .addLayer(osm);
-
-L.geoJson(provinciasData).addTo(map);
 
 
 
