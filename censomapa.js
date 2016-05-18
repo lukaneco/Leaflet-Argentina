@@ -1,73 +1,117 @@
-var featureExtents = function(feature) {
-    var b = feature.data.properties.bounds;
-    return [{lon:b[0],lat:b[1]},{lon:b[2],lat:b[3]}];
-};
+app = {
+    map: null,
+    geojson: null,
 
-var loadProvincias = function(e) {
-    for (var i = 0; i < e.features.length; i++) {
-	var feature = e.features[i];
 
-	jQuery.data(feature.element, 'originalClass', 'color' + ((i % 5) + 1));
-        feature.element.setAttribute('class', 'color' + ((i % 5) + 1));
+    init: function () {
+        this.map = L.map('map_container')
+            .setView(new L.LatLng(-38, -56), 4)
+            .addLayer(this.createOSM());
+        this.loadAllProvincias();
+    },
 
-	var name = feature.data.properties.provincia;
-       	jQuery.data($("#menu li a:contains('" + name.toUpperCase() + "')")[0], 'feature', feature);
+
+    createOSM: function () {
+        return new L.tileLayer('http://{s}tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+            maxZoom: 12,
+            subdomains: ['a.', 'b.', 'c.', '']
+        });
+    },
+
+
+    loadAllProvincias: function () {
+        var _this = this;
+        $.getJSON('provincias.json', function(geoJsonData){
+            _this.geojson = L.geoJson(geoJsonData, {
+                onEachFeature: app.loadProvincia,
+                style: app.getStyle
+            }).addTo(_this.map);
+        })
+    },
+
+
+    loadProvincia: function (feature, layer) {
+        layer.on({
+            mouseover: app.highlightFeature,
+            mouseout: app.resetHighlight,
+            click: app.zoomToFeature
+        });
+
+        app.setMenuLink(feature.properties.provincia, layer);
+    },
+
+    getColor: function (id) {
+    switch ( id % 5) {
+        case 0: return '#D7191C';
+        case 1: return '#FDAE61';
+        case 2: return '#FFFFBF';
+        case 3: return '#ABD9E9';
+        case 4: return '#C7BB62';
+    }
+},
+
+    getStyle: function (feature) {
+        return {
+            fillColor: app.getColor(feature.properties.objectid),
+            fillOpacity: 0.7,
+            color: 'white',
+            weight: 1.5,
+            opacity: 0.8,
+            dashArray: '3'
+        };
+    },
+
+
+    highlightFeature: function (e) {
+        var layer = e.target.feature ? e.target: $(this).data('layer');
+
+        layer.setStyle({
+            weight: 5,
+            color: '#666',
+            dashArray: '',
+            fillOpacity: 0.7
+        });
+        if (!L.Browser.ie && !L.Browser.opera) {
+            layer.bringToFront();
+        }
+    },
+
+    resetHighlight: function (e) {
+        var layer = e.target.feature ? e.target: $(this).data('layer');
+        //var layer = e.target;
+        app.geojson.resetStyle(layer);
+    },
+
+    zoomToFeature: function (e) {
+        var layer = e.target.feature ? e.target: $(this).data('layer');
+        app.map.fitBounds(layer.getBounds());
+        app.loadDepartamentos(layer.feature)
+    },
+
+
+
+    loadDepartamentos: function (feature) {
+        var _this = this;
+        $.getJSON('provincias/'+ feature.properties.provincia.toUpperCase() +'.json', function(geoJsonData){
+            L.geoJson(geoJsonData).addTo(_this.map);
+        })
+    },
+
+    setMenuLink: function (name, layer) {
+        $.data($("#menu li a:contains('" + name.toUpperCase() + "')")[0], 'layer', layer);
     }
 };
 
-var loadDepartamentos = function(e) {
-    for (var i = 0; i < e.features.length; i++) {
-	var feature = e.features[i];
-	feature.element.setAttribute('class', 'dpto');
-    }
-};
 
+$(document).ready(function () {
 
-var po = org.polymaps;
+    app.init();
 
-var map = po.map()
-    .container(document.getElementById("map").appendChild(po.svg("svg")))
-    .center({lat: -38, lon: -56})
-    .zoomRange([3, 12])
-    .zoom(4)
-    .add(po.interact());
-
-
-
-
-map.add(po.image()
-    .url(po.url("http://{S}tile.openstreetmap.org/{Z}/{X}/{Y}.png")
-        .hosts(["a.", "b.", "c.", ""])));
-
-
-map.add(po.geoJson()
-			 .url("provincias.json")
-			 .tile(false).on('load', loadProvincias));
-
-map.add(po.compass()
-	.pan("none"));
-
-
-$(document).ready(function() {
-		      $('#menu li a').mouseover(function(e) {
-						    var f = jQuery.data($(this)[0], 'feature').element;
-						    f.setAttribute('class', 'provinciaFoco');
-						})
-                                     .mouseout(function(e) {
-						   var f = jQuery.data($(this)[0], 'feature').element;
-						   f.setAttribute('class', jQuery.data(f, 'originalClass'));
-					       })
-		                     .click(function(e) {
-						var f = jQuery.data($(this)[0], 'feature');
-						map.extent(featureExtents(f));
-						// get json para los departamentos
-                                                map.add(po.geoJson()
-							.url("provincias/" + f.data.properties.provincia.toUpperCase() + ".json")
-                                                        .tile(false)
-                                                        .on('load', loadDepartamentos));
-					
-					    });
-		       
+    $('#menu li a')
+        .mouseover( app.highlightFeature)
+        .mouseout( app.resetHighlight )
+        .click( app.zoomToFeature );
 });
 
 
