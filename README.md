@@ -3,7 +3,8 @@
 Para salir andando rápido:
 - Con Python
 ```bash
-python -m SimpleHTTPServer
+python2 -m SimpleHTTPServer
+python3 -m http.server
 ```
 
 - Con NodeJS
